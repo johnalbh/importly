@@ -1,0 +1,124 @@
+{
+  "name": "importly",
+  "displayName": "Importly",
+  "description": "Sorts JavaScript/TypeScript imports following modern standards. Auto-sort on save, supports React, aliases, and import type.",
+  "version": "1.0.0",
+  "publisher": "johnalbh",
+  "author": {
+    "name": "johnalbh",
+    "email": "johnalbh@gmail.com",
+    "url": "https://github.com/johnalbh"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Formatters",
+    "Other"
+  ],
+  "keywords": [
+    "import",
+    "sort",
+    "organize",
+    "react",
+    "typescript",
+    "javascript"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "importly.sortImports",
+        "title": "Sort Imports",
+        "category": "Importly"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "importly.sortImports",
+        "key": "ctrl+shift+alt+s",
+        "mac": "cmd+shift+alt+s",
+        "when": "editorTextFocus"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "importly.sortImports",
+          "group": "1_modification",
+          "when": "editorTextFocus && resourceExtname =~ /\\.(js|jsx|ts|tsx|mjs|cjs)$/"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Importly",
+      "properties": {
+        "importly.aliases": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["@/", "~/", "#"],
+          "description": "Path alias prefixes treated as internal imports (e.g. @/, ~/, #)"
+        },
+        "importly.separateGroups": {
+          "type": "boolean",
+          "default": true,
+          "description": "Add a blank line between each import group"
+        },
+        "importly.multilineThreshold": {
+          "type": "number",
+          "default": 3,
+          "description": "Number of named imports before switching to multiline format"
+        },
+        "importly.sortOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically sort imports when saving a file"
+        },
+        "importly.quoteStyle": {
+          "type": "string",
+          "enum": ["single", "double"],
+          "default": "single",
+          "description": "Quote style for import paths"
+        },
+        "importly.trailingComma": {
+          "type": "boolean",
+          "default": true,
+          "description": "Add trailing comma in multiline imports"
+        },
+        "importly.semicolons": {
+          "type": "boolean",
+          "default": true,
+          "description": "Add semicolons at end of import statements"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.5.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^10.1.0",
+    "glob": "^13.0.6",
+    "mocha": "^11.7.5",
+    "typescript": "^5.9.3"
+  }
+}
