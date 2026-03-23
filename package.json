@@ -10,6 +10,10 @@
     "url": "https://github.com/johnalbh"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/johnalbh/importly.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
