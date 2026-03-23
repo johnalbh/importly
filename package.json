@@ -2,13 +2,14 @@
   "name": "importly",
   "displayName": "Importly",
   "description": "Sorts JavaScript/TypeScript imports following modern standards. Auto-sort on save, supports React, aliases, and import type.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "johnalbh",
   "author": {
     "name": "johnalbh",
     "email": "johnalbh@gmail.com",
     "url": "https://github.com/johnalbh"
   },
+  "icon": "logo.png",
   "license": "MIT",
   "repository": {
     "type": "git",
