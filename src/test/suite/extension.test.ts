@@ -134,6 +134,47 @@ suite('Parser — extractImportStrings', () => {
     assert.ok(rest.includes('const x = 1;'));
   });
 
+  test("preserves 'use client' directive as preamble", () => {
+    const text = [
+      "'use client';",
+      '',
+      "import React from 'react';",
+      "import axios from 'axios';",
+      '',
+      'export default function Page() {}',
+    ].join('\n');
+
+    const { preamble, imports, rest } = extractImportStrings(text);
+    assert.ok(preamble.includes("'use client'"), 'Preamble should contain the directive');
+    assert.strictEqual(imports.length, 2);
+    assert.ok(rest.includes('export default function Page()'));
+  });
+
+  test("preserves 'use server' directive as preamble", () => {
+    const text = [
+      "'use server';",
+      "import { cache } from 'react';",
+    ].join('\n');
+
+    const { preamble, imports } = extractImportStrings(text);
+    assert.ok(preamble.includes("'use server'"), 'Preamble should contain the directive');
+    assert.strictEqual(imports.length, 1);
+  });
+
+  test('handles directive without blank line before imports', () => {
+    const text = "'use client';\nimport React from 'react';";
+    const { preamble, imports } = extractImportStrings(text);
+    assert.ok(preamble.includes("'use client'"));
+    assert.strictEqual(imports.length, 1);
+  });
+
+  test('handles directive with double quotes', () => {
+    const text = '"use client";\nimport React from \'react\';';
+    const { preamble, imports } = extractImportStrings(text);
+    assert.ok(preamble.includes('"use client"'));
+    assert.strictEqual(imports.length, 1);
+  });
+
 });
 
 // =============================================================================
@@ -336,6 +377,22 @@ suite('Formatter — formatImport', () => {
     assert.ok(!result.endsWith(';'));
   });
 
+  test('omits trailing comma on last item in multiline when trailingComma is false', () => {
+    // threshold = 3, this has 4 named → multiline
+    const imp = parseImportStatement(
+      "import { Button, Input, Modal, Select } from '@mui/material';"
+    );
+    const [grouped] = assignGroups([imp], CONFIG);
+    const result = formatImport(grouped, { ...CONFIG, trailingComma: false });
+    const lines = result.split('\n');
+    // The line with "Select" (last named import) must NOT end with comma
+    const selectLine = lines.find((l) => l.includes('Select'));
+    assert.ok(selectLine && !selectLine.trimEnd().endsWith(','), 'Last item must not have trailing comma');
+    // But intermediate items still have commas
+    const buttonLine = lines.find((l) => l.includes('Button'));
+    assert.ok(buttonLine && buttonLine.trimEnd().endsWith(','), 'Intermediate items must still have commas');
+  });
+
 });
 
 // =============================================================================
@@ -381,6 +438,76 @@ suite('Integration — full sort pipeline', () => {
       lines[lines.length - 1].includes("'./global.css'"),
       'global.css should be last',
     );
+  });
+
+  test("preserves 'use client' directive through full pipeline", () => {
+    const input = [
+      "'use client';",
+      '',
+      "import { useRouter } from 'next/navigation';",
+      "import React, { useState } from 'react';",
+      "import type { FC } from 'react';",
+      '',
+      'export default function Page() { return null; }',
+    ].join('\n');
+
+    const { preamble, imports, rest } = extractImportStrings(input);
+    const parsed    = imports.map(parseImportStatement);
+    const grouped   = assignGroups(parsed, CONFIG);
+    const sorted    = sortImports(grouped);
+    const formatted = formatImports(sorted, CONFIG);
+
+    // Reconstruct (same logic as sortText in extension.ts)
+    const parts: string[] = [];
+    if (preamble.trimEnd().length > 0) {
+      parts.push(preamble.trimEnd());
+      parts.push('');
+    }
+    parts.push(formatted);
+    const trimmedRest = rest.trimStart();
+    if (trimmedRest.length > 0) {
+      parts.push('');
+      parts.push(trimmedRest);
+    }
+    const output = parts.join('\n');
+
+    // Directive must be the very first line
+    assert.ok(output.startsWith("'use client';"), `Directive must be first, got: ${output.slice(0, 30)}`);
+
+    // React group before External (next/navigation)
+    const lines = output.split('\n').filter((l) => l.trim());
+    const reactIdx = lines.findIndex((l) => l.includes("'react'"));
+    const nextIdx  = lines.findIndex((l) => l.includes("'next/navigation'"));
+    assert.ok(reactIdx < nextIdx, 'React should come before next/navigation');
+
+    // Type import comes after react/external (group Types = 6)
+    const typeIdx = lines.findIndex((l) => l.includes('import type'));
+    assert.ok(typeIdx > nextIdx, 'Type import should come after external imports');
+
+    // Rest of file is preserved
+    assert.ok(output.includes('export default function Page()'), 'Rest of file must be preserved');
+  });
+
+  test("'use client' is placed before a blank line and then imports", () => {
+    // Verifies the blank line normalization: directive → blank line → imports
+    const input = "'use client';\nimport axios from 'axios';";
+
+    const { preamble, imports } = extractImportStrings(input);
+    const parsed    = imports.map(parseImportStatement);
+    const grouped   = assignGroups(parsed, CONFIG);
+    const sorted    = sortImports(grouped);
+    const formatted = formatImports(sorted, CONFIG);
+
+    const parts: string[] = [];
+    if (preamble.trimEnd().length > 0) {
+      parts.push(preamble.trimEnd());
+      parts.push('');
+    }
+    parts.push(formatted);
+    const output = parts.join('\n');
+
+    // Should be: 'use client';\n\nimport axios...
+    assert.strictEqual(output, "'use client';\n\nimport axios from 'axios';");
   });
 
 });

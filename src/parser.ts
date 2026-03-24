@@ -14,6 +14,12 @@ const IMPORT_START_RE = /^import\b/;
  */
 const IMPORT_END_RE = /from\s*(['"])[^'"]+\1\s*;?\s*$|^import\s*(['"])[^'"]+\2\s*;?\s*$/;
 
+/**
+ * Matches React/Next.js file directives that appear before imports.
+ * Examples: 'use client';  'use server';
+ */
+const DIRECTIVE_RE = /^['"]use \w+['"]\s*;?\s*$/;
+
 // ---------------------------------------------------------------------------
 // extractImportStrings
 // ---------------------------------------------------------------------------
@@ -21,43 +27,57 @@ const IMPORT_END_RE = /from\s*(['"])[^'"]+\1\s*;?\s*$|^import\s*(['"])[^'"]+\2\s
 /**
  * Scans raw file text and extracts all import statement strings.
  * Handles both single-line and multiline imports.
+ * Preserves leading directives like 'use client' and 'use server'.
  *
  * Returns:
- *   imports → array of raw import strings (one per statement)
- *   rest    → everything after the import block
+ *   preamble → directives/blank lines before the import block (e.g. 'use client';)
+ *   imports  → array of raw import strings (one per statement)
+ *   rest     → everything after the import block
  *
  * Example input:
+ *   'use client';
+ *
  *   import React from 'react';
- *   import {
- *     useState,
- *   } from 'react';
  *   const x = 1;
  *
  * Example output:
- *   imports: ["import React from 'react';", "import {\n  useState,\n} from 'react';"]
- *   rest: "const x = 1;"
+ *   preamble: "'use client';\n"
+ *   imports:  ["import React from 'react';"]
+ *   rest:     "const x = 1;"
  */
 export function extractImportStrings(text: string): {
+  preamble: string;
   imports: string[];
   rest: string;
 } {
   const lines = text.split('\n');
+  const preambleLines: string[] = [];
   const imports: string[] = [];
   let i = 0;
   let inImport = false;
   let currentImport: string[] = [];
 
+  // ── Collect preamble (directives and blank lines before imports) ──────────
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+    if (trimmed === '' || DIRECTIVE_RE.test(trimmed)) {
+      preambleLines.push(lines[i]);
+      i++;
+    } else {
+      break;
+    }
+  }
+
+  // ── Collect import statements ─────────────────────────────────────────────
   while (i < lines.length) {
     const line = lines[i];
     const trimmed = line.trim();
 
     if (!inImport) {
       if (IMPORT_START_RE.test(trimmed)) {
-        // Start collecting a new import statement
         inImport = true;
         currentImport = [line];
 
-        // Check if it's already complete in one line
         if (IMPORT_END_RE.test(trimmed)) {
           imports.push(currentImport.join('\n'));
           currentImport = [];
@@ -65,16 +85,12 @@ export function extractImportStrings(text: string): {
         }
       } else if (trimmed === '') {
         // Skip blank lines between imports
-        if (imports.length > 0) {
-          // blank line after at least one import → keep skipping
-        }
       } else {
         // Non-import, non-blank line → end of import block
         const rest = lines.slice(i).join('\n');
-        return { imports, rest };
+        return { preamble: preambleLines.join('\n'), imports, rest };
       }
     } else {
-      // We are inside a multiline import — keep accumulating
       currentImport.push(line);
 
       if (IMPORT_END_RE.test(trimmed)) {
@@ -87,12 +103,11 @@ export function extractImportStrings(text: string): {
     i++;
   }
 
-  // Edge case: file ended while inside an import (malformed, but handle gracefully)
   if (currentImport.length > 0) {
     imports.push(currentImport.join('\n'));
   }
 
-  return { imports, rest: '' };
+  return { preamble: preambleLines.join('\n'), imports, rest: '' };
 }
 
 // ---------------------------------------------------------------------------

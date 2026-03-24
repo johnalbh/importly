@@ -47,25 +47,35 @@ function getConfig(): SorterConfig {
  *     → re-attach rest of file
  */
 function sortText(text: string, config: SorterConfig): string | null {
-  const { imports: importStrings, rest } = extractImportStrings(text);
+  const { preamble, imports: importStrings, rest } = extractImportStrings(text);
 
   // Nothing to sort
   if (importStrings.length === 0) {
     return null;
   }
 
-  const parsed   = importStrings.map(parseImportStatement);
-  const grouped  = assignGroups(parsed, config);
-  const sorted   = sortImports(grouped);
+  const parsed    = importStrings.map(parseImportStatement);
+  const grouped   = assignGroups(parsed, config);
+  const sorted    = sortImports(grouped);
   const formatted = formatImports(sorted, config);
 
-  // Re-attach the rest of the file after the imports
-  const trimmedRest = rest.trimStart();
-  if (trimmedRest.length === 0) {
-    return formatted;
+  // Rebuild file: preamble + imports + rest
+  const parts: string[] = [];
+
+  if (preamble.trimEnd().length > 0) {
+    parts.push(preamble.trimEnd());
+    parts.push(''); // blank line between directive and imports
   }
 
-  return `${formatted}\n\n${trimmedRest}`;
+  parts.push(formatted);
+
+  const trimmedRest = rest.trimStart();
+  if (trimmedRest.length > 0) {
+    parts.push(''); // blank line between imports and rest of file
+    parts.push(trimmedRest);
+  }
+
+  return parts.join('\n');
 }
 
 // ---------------------------------------------------------------------------

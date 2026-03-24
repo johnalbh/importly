@@ -118,14 +118,17 @@ function formatMultiline(imp: ParsedImport, config: SorterConfig): string {
   const typeKeyword = imp.isTypeImport ? 'type ' : '';
   const defaultPart = imp.defaultImport ? `${imp.defaultImport}, ` : '';
 
-  // Each named import on its own indented line with a trailing comma
+  // Each named import on its own indented line.
+  // Only the last item respects config.trailingComma; all others always have a comma.
   const namedLines = imp.namedImports
-    .map((n) => {
+    .map((n, index, arr) => {
       const typePrefix = n.isTypeOnly ? 'type ' : '';
       const nameStr = n.alias
         ? `${typePrefix}${n.name} as ${n.alias}`
         : `${typePrefix}${n.name}`;
-      return `  ${nameStr},`;
+      const isLast = index === arr.length - 1;
+      const comma = !isLast || config.trailingComma ? ',' : '';
+      return `  ${nameStr}${comma}`;
     })
     .join('\n');
 
